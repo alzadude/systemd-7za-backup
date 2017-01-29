@@ -1,0 +1,25 @@
+[Unit]
+BindsTo=media-%i.mount
+After=media-%i.mount
+
+[Service]
+Environment="TMPDIR=/tmp/backup"
+Environment="PASSWORD=/etc/sysconfig/backup.password"
+EnvironmentFile=/etc/sysconfig/backup
+ExecStartPre=/bin/bash -c \
+ 'expected="basename expect 7za sed"; \
+  results=$(for cmd in $expected; do command -V $cmd 2>/dev/null; done); \
+  actual=$(printf "%%s\\n" "$results" | while read first _; do printf "%%s%%s" "$sep" "$first"; sep=" "; done); \
+  test "$expected" == "$actual" || { printf "Expected commands on PATH: %%s, actual: %%s\\n" "$expected" "$actual" 1>&2; exit 1; }'
+ExecStartPre=/bin/mkdir -p ${TMPDIR}
+ExecStart=/bin/bash -c \
+ 'set -o pipefail; \
+  for dir in ${DIRS}; do \
+    { cd $dir && \
+      mkdir /media/%i/$(basename $dir).tmp && \
+      7za.expect ${PASSWORD} a -p ${OPTS} -w${TMPDIR} /media/%i/$(basename $dir).tmp/$(basename $dir).7z . | sed -u "/Compressing/d" && \
+      rm -rf /media/%i/$(basename $dir) && \
+      mv /media/%i/$(basename $dir).tmp /media/%i/$(basename $dir); } || exit $?; \
+  done'
+ExecStopPost=/bin/sh -c "for dir in ${DIRS}; do rm -rf /media/%i/$(basename $dir).tmp; done"
+ExecStopPost=/bin/rm -rf ${TMPDIR}
