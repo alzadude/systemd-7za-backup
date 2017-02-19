@@ -3,7 +3,7 @@
 set timeout -1
 set fp [open "[lindex $argv 0]" r]
 set password [read $fp]
-set send_slow {1 .01}
+set send_slow {1 .1}
 
 spawn 7za {*}[lrange $argv 1 end]
 
